@@ -1,42 +1,43 @@
 // SPDX-License-Identifier: MIT
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "../src/my_token.sol";
+import "../src/my_tokenA.sol";
+import "../src/my_tokenB.sol";
 
 pragma solidity ^0.8.20;
-contract Amm is ERC20{
-    MyToken a;
-    MyToken b;
+
+contract Amm {
+    MyTokenA myTokenA;
+    MyTokenB myTokenB;
     uint256  k ;
     uint256 wad;
-    uint256 prevX;
-    uint256 prevY;
-    mapping(address=>uint256)balanceUser;
+    
+    mapping(address => uint256) public balanceUser;
 
-    constructor(string memory _name, string memory _symbol) ERC20(_name, _symbol)public{
-        a = new MyToken();
-        b = new MyToken(); 
-        a.approve(address(this),1000);
-        a.mint(1000,address(this));
-        b.approve(address(this),1000);
-        b.mint(2000,address(this));   
-        k = a.balanceOf(address(this)) * b.balanceOf(address(this));
+    constructor(MyTokenA a,MyTokenB b) public{
+        myTokenA = MyTokenA(a);
+        myTokenB = MyTokenB(b); 
+        myTokenA.approve(address(this),1000);
+        myTokenA.mint(1000,address(this));
+        myTokenB.approve(address(this),2000);
+        myTokenB.mint(2000,address(this));   
+        k = myTokenA.balanceOf(address(this)) * myTokenB.balanceOf(address(this));
         wad=10 ** 18;
     }
 
-    
-    function tradeAToB(uint256 amount,MyToken type_token)public{
+    //
+    function tradeAToB(uint256 amount,IERC20 type_token)public{
         require(type_token.balanceOf(address(this)) >= amount,'DONT HAVE ENOUGH FROM THIS TOKENS');
-        if(type_token == a){
+        if(type_token == myTokenA){
             //token that he whant to trade
             //a i get
             //b i tranfer
-           tradeAToB_orBToA (amount, a, b);
+           tradeAToB_orBToA (amount, myTokenA, myTokenB);
         }
         else{
-            tradeAToB_orBToA (amount, b, a);
+            tradeAToB_orBToA (amount, myTokenB, myTokenA);//
         }
     }
-    function tradeAToB_orBToA (uint256 amount,MyToken x ,MyToken y) public{
+    function tradeAToB_orBToA (uint256 amount,IERC20 x ,IERC20 y) public{
             uint p = (k / (x.balanceOf(address(this)) + amount));
             //how many msg get after he trade 
             uint c = y.balanceOf(address(this)) - p;
@@ -46,9 +47,10 @@ contract Amm is ERC20{
             x.transferFrom(msg.sender ,(address(this)) ,amount);
          
     }
-    function price()public{
-        uint256 balanceA = a.balanceOf(address(this));
-        uint256 balanceB = b.balanceOf(address(this));
+    function price()public returns(uint256){
+        uint256 balanceA = myTokenA.balanceOf(address(this));
+        uint256 balanceB = myTokenB.balanceOf(address(this));
+        return balanceA > balanceB ? (balanceA / balanceB) * wad : (balanceB / balanceA) * wad;
     }
     function calculation(uint256 A, uint256 B, uint256 K) public view returns(uint256){
         uint256 divied = (K/A) * wad;
@@ -57,28 +59,30 @@ contract Amm is ERC20{
     }
     ///dont ight
     function addLiquidity(uint256 amountA,uint256 amountB)public{
-
         //היחס של כל מטבע בודד הוא בהתאם למה שרוצים a/b או b/a
-        uint256 balanceA = a.balanceOf(address(this));
-        uint256 balanceB = b.balanceOf(address(this));
-        uint256 proportionalA = (balanceB/balanceA)*wad;
-        uint256 proportionalB=(balanceA/balanceB)*wad;
+        uint256 balanceA = myTokenA.balanceOf(address(this));
+        uint256 balanceB = myTokenB.balanceOf(address(this));
+             
+        // uint256 proportionalA = (balanceB/balanceA) * wad;
+        // console.log("A",proportionalA);
+        // uint256 proportionalB=(balanceA/balanceB) * wad;
+        uint256 proportional=amountA > amountB ? (amountA / amountB) * wad : ( amountB/amountA ) * wad;
+
+
         //בודקת עם היחס שווה גם ל2 הסכומים שקיבלתי A וB בהתאמה 
-        require((amountA / amountB) * wad == proportionalB ,'the proportional not same ');
-        a.transfer(msg.sender, amountA);
-        b.transfer(msg.sender, amountB);
-        balanceUser[msg.sender] += amountB + amountA;
-        
+        require(proportional == price(),'the proportional not same ');
+        myTokenA.transferFrom(msg.sender, address(this), amountA);
+        myTokenB.transferFrom(msg.sender, address(this), amountB);
     }
     function removeLiquidity(uint256 amount)public{
         require(balanceUser[msg.sender] > 0,'you cant remove');
-        uint256 total = b.balanceOf(address(this)) + a.balanceOf(address(this));
+        uint256 total = myTokenB.balanceOf(address(this)) + myTokenA.balanceOf(address(this));
         //כמה יחסי  אני יכולה למשוך
         console.log(balanceUser[msg.sender]);
         uint256 proportional = (balanceUser[msg.sender]/total) * wad;
         balanceUser[msg.sender]-=amount;
-        a.transferFrom(address(this), msg.sender, proportional * a.balanceOf(address(this)));
-        b.transferFrom(address(this), msg.sender, proportional * b.balanceOf(address(this)));
+        myTokenA.transferFrom(address(this), msg.sender, proportional * myTokenA.balanceOf(address(this)));
+        myTokenB.transferFrom(address(this), msg.sender, proportional * myTokenB.balanceOf(address(this)));
 
     }
 }
