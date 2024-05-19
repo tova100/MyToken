@@ -63,6 +63,7 @@ address public owner;
     function  decimals() external pure returns (uint8){
         return 7;
     }
+   function mint(address to, uint256 amount) external{}
 }
 
 

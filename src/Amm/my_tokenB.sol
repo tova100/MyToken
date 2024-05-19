@@ -13,6 +13,7 @@ address public owner;
     constructor(){
         owner=msg.sender;
     }
+    function mint(address to, uint256 amount) external{}
     function transfer(address to, uint256 amount) external returns (bool){
         balanceOf[msg.sender]-=amount;
         balanceOf[to]+=amount;
