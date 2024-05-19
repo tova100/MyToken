@@ -38,6 +38,7 @@ contract Auction {
                 // suggest[msg.sender].amoumt =amount;
                 }
                 require(msg.sender.balance >=amount , "you do not have enough money");
+                
                 transferFrom(msg.sender, address(this) , amount);
                 allSuggest.push(msg.sender);
                 suggest[msg.sender].amount=amount;
